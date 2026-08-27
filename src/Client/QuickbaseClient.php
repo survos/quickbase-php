@@ -302,6 +302,151 @@ final readonly class QuickbaseClient implements QuickbaseClientInterface
     }
 
     /** @return array<array-key, mixed> */
+    /**
+     * A single table's definition. `tables()` lists them; this fetches one.
+     */
+    public function table(string $tableId, string $appId): array
+    {
+        self::requireId($tableId, 'table');
+        self::requireId($appId, 'app');
+
+        return $this->request('GET', 'tables/'.rawurlencode($tableId), ['query' => ['appId' => $appId]]);
+    }
+
+    /**
+     * A single field's definition. `fields()` lists them; this fetches one.
+     */
+    public function field(int $fieldId, string $tableId): array
+    {
+        self::requireId($tableId, 'table');
+
+        return $this->request('GET', 'fields/'.$fieldId, ['query' => ['tableId' => $tableId]]);
+    }
+
+    /**
+     * Where a field is used -- reports, formulas, relationships. Worth checking before
+     * deleting one.
+     */
+    public function fieldUsage(int $fieldId, string $tableId): array
+    {
+        self::requireId($tableId, 'table');
+
+        return $this->request('GET', 'fields/usage/'.$fieldId, ['query' => ['tableId' => $tableId]]);
+    }
+
+    /**
+     * Records changed since a point in time -- the endpoint an incremental sync wants,
+     * rather than re-querying everything.
+     */
+    public function recordsModifiedSince(string $tableId, \DateTimeInterface $since, array $payload = []): array
+    {
+        self::requireId($tableId, 'table');
+
+        return $this->request('POST', 'records/modifiedSince', [
+            'json' => $payload + ['tableId' => $tableId, 'since' => $since->format(\DateTimeInterface::ATOM)],
+        ]);
+    }
+
+    /**
+     * A single report's definition. `reports()` lists them.
+     */
+    public function report(string $reportId, string $tableId): array
+    {
+        self::requireId($reportId, 'report');
+        self::requireId($tableId, 'table');
+
+        return $this->request('GET', 'reports/'.rawurlencode($reportId), ['query' => ['tableId' => $tableId]]);
+    }
+
+    /**
+     * Run a saved report. Lets an application reuse filters and column selections that
+     * were defined in Quickbase rather than restating them in code.
+     */
+    public function runReport(string $reportId, string $tableId, int $skip = 0, ?int $top = null): array
+    {
+        self::requireId($reportId, 'report');
+        self::requireId($tableId, 'table');
+
+        $query = ['tableId' => $tableId, 'skip' => $skip];
+        if (null !== $top) {
+            $query['top'] = $top;
+        }
+
+        return $this->request('POST', 'reports/'.rawurlencode($reportId).'/run', ['query' => $query]);
+    }
+
+    /**
+     * Evaluate a Quickbase formula against one record, without storing it.
+     */
+    public function runFormula(string $formula, string $tableId, int|string $recordId): array
+    {
+        self::requireId($tableId, 'table');
+
+        return $this->request('POST', 'formula/run', [
+            'json' => ['formula' => $formula, 'rid' => $recordId, 'from' => $tableId],
+        ]);
+    }
+
+    /**
+     * Download a file attachment. Returns raw bytes, not JSON -- Quickbase base64-encodes
+     * the body, so it is decoded here.
+     */
+    public function downloadFile(string $tableId, int|string $recordId, int $fieldId, int $versionNumber = 0): string
+    {
+        self::requireId($tableId, 'table');
+
+        $raw = $this->requestRaw('GET', sprintf(
+            'files/%s/%s/%d/%d',
+            rawurlencode($tableId), rawurlencode((string) $recordId), $fieldId, $versionNumber
+        ));
+
+        return base64_decode(trim($raw, '"'), true) ?: $raw;
+    }
+
+    /**
+     * Delete one version of a file attachment.
+     */
+    public function deleteFile(string $tableId, int|string $recordId, int $fieldId, int $versionNumber): array
+    {
+        self::requireId($tableId, 'table');
+
+        return $this->request('DELETE', sprintf(
+            'files/%s/%s/%d/%d',
+            rawurlencode($tableId), rawurlencode((string) $recordId), $fieldId, $versionNumber
+        ));
+    }
+
+    /**
+     * A short-lived token scoped to one app or table, safe to hand to a browser -- unlike
+     * the user token, which must stay on the server.
+     */
+    public function temporaryToken(string $dbid): array
+    {
+        self::requireId($dbid, 'app');
+
+        return $this->request('GET', 'auth/temporary/'.rawurlencode($dbid));
+    }
+
+    /**
+     * An app's event subscriptions -- webhooks, notifications, subscriptions, reminders.
+     */
+    public function appEvents(string $appId): array
+    {
+        self::requireId($appId, 'app');
+
+        return self::objectList($this->request('GET', 'apps/'.rawurlencode($appId).'/events'));
+    }
+
+    /**
+     * Copy an app, with or without its data.
+     */
+    public function copyApp(string $appId, array $definition): array
+    {
+        self::requireId($appId, 'app');
+
+        return $this->request('POST', 'apps/'.rawurlencode($appId).'/copy', ['json' => $definition]);
+    }
+
     public function request(string $method, string $path, array $options = []): array
     {
         $content = $this->requestRaw($method, $path, $options);

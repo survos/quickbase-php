@@ -66,6 +66,20 @@ Because `TableReference` carries a logical-name to field-id map, application cod
 **Writes use the ordinary records API**, so Pipelines and Automations that listen on
 record events fire the same way they do for a change made in the Quickbase UI.
 
+## Coverage
+
+Wrapped, against Quickbase's published operation list: apps, tables, fields, field usage,
+relationships, reports (list, fetch, run), records (query, upsert, delete, modified-since),
+file attachments (download, delete), formula evaluation, temporary tokens, app events, and
+QBL solutions.
+
+**Deliberately not wrapped: user and group governance** — `getUsers`, `denyUsers`,
+trustees, roles, group membership, user tokens, and platform analytics. Those manage
+Quickbase *seats*, and the pattern this library is built for keeps members out of
+Quickbase entirely: an application authenticates its own service account, and a member is
+a row in a table you define, not a licensed user. Anything here is still reachable through
+`request()` / `requestRaw()` if you need it.
+
 ## Schema and QBL
 
 `Schema\QuickbaseSchemaManager` and `Qbl\QblDocument` cover the parts of Quickbase that
