@@ -17,6 +17,17 @@ final readonly class QuickbaseAppRegistry
         return $this->apps;
     }
 
+    /**
+     * Whether an application is configured under this name.
+     *
+     * Symfony normalizes configuration keys, so an app written as `lions-ai` is stored as
+     * `lions_ai`. Callers must not test $registry->all() directly or a dashed name misses.
+     */
+    public function has(string $name): bool
+    {
+        return isset($this->apps[$this->configuredName($name)]);
+    }
+
     public function isReadonly(string $name): bool
     {
         return (bool) ($this->apps[$this->configuredName($name)]['readonly'] ?? false);

@@ -489,7 +489,9 @@ final readonly class QuickbaseClient implements QuickbaseClientInterface
         }
 
         if ($statusCode < 200 || $statusCode >= 300) {
-            $message = $decoded['message'] ?? $decoded['description'] ?? self::nonJsonError($content, $statusCode);
+            // Quickbase puts a generic label in `message` ("Invalid input") and the reason that
+            // actually identifies the problem in `description`. Keep both.
+            $message = self::errorMessage($decoded) ?? self::nonJsonError($content, $statusCode);
             throw new QuickbaseApiException(
                 is_string($message) ? $message : sprintf('Quickbase request failed with HTTP %d.', $statusCode),
                 $statusCode,
@@ -512,6 +514,20 @@ final readonly class QuickbaseClient implements QuickbaseClientInterface
             'headers' => ['QBL-Version' => $qblVersion, 'Content-Type' => 'application/yaml', 'Accept' => 'application/json'],
             'body' => $qbl,
         ];
+    }
+
+    /** @param array<array-key, mixed> $decoded */
+    private static function errorMessage(array $decoded): ?string
+    {
+        $parts = [];
+        foreach (['message', 'description'] as $key) {
+            $value = $decoded[$key] ?? null;
+            if (is_string($value) && '' !== trim($value) && !in_array($value, $parts, true)) {
+                $parts[] = $value;
+            }
+        }
+
+        return [] === $parts ? null : implode(': ', $parts);
     }
 
     private static function nonJsonError(string $content, int $statusCode): string
