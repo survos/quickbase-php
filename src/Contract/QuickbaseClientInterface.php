@@ -96,6 +96,14 @@ interface QuickbaseClientInterface
     /** @return array<string, mixed> */
     public function deleteRecords(string $tableId, string $where): array;
 
+    /**
+     * The raw bytes of one file attachment. Version 0 is the most recent.
+     *
+     * Not routed through request(): Quickbase answers this endpoint with base64 rather than
+     * JSON, so a caller that only has request() cannot reach an attachment at all.
+     */
+    public function downloadFile(string $tableId, int|string $recordId, int $fieldId, int $versionNumber = 0): string;
+
     public function exportSolution(string $solutionId, string $qblVersion = '0.14'): string;
 
     /** @return array<string, mixed> */

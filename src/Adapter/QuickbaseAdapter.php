@@ -71,7 +71,7 @@ final readonly class QuickbaseAdapter implements RecordStoreAdapterInterface
                     $fieldId,
                     $reverseFields[$fieldId] ?? (string) $fieldId,
                     $fieldLabel,
-                    self::fieldType($nativeType),
+                    self::fieldType($nativeType, is_array($field['properties'] ?? null) ? $field['properties'] : []),
                     $field,
                 );
             }
@@ -181,20 +181,45 @@ final readonly class QuickbaseAdapter implements RecordStoreAdapterInterface
         return str_replace(['\\', "'"], ['\\\\', "\\'"], $string);
     }
 
-    private static function fieldType(string $nativeType): FieldType
+    /**
+     * Quickbase's fieldType alone does not determine the normalized type.
+     *
+     * A reference field -- the child side of a relationship -- is reported as `numeric`, and
+     * the only thing that distinguishes it from a plain number is `properties.foreignKey`.
+     * There is no fieldType named "reference", so a mapping keyed on the type string can
+     * never produce FieldType::Reference and every relationship in the application arrives
+     * as an integer.
+     *
+     * @param array<string, mixed> $properties the field's `properties` object
+     */
+    private static function fieldType(string $nativeType, array $properties = []): FieldType
     {
+        if (true === ($properties['foreignKey'] ?? null)) {
+            return FieldType::Reference;
+        }
+
         return match (strtolower($nativeType)) {
-            'text', 'text-multiple-choice', 'multitext' => FieldType::Text,
+            'text', 'text-multi-line', 'rich-text', 'url', 'email', 'phone', 'address', 'dblink' => FieldType::Text,
+            // Both are pick lists with an allowed-value set in properties.choices; calling them
+            // text discards that set, and with it every store that has a real choice type.
+            'text-multiple-choice' => FieldType::Choice,
+            'multitext' => FieldType::Choice,
             'numeric', 'recordid' => FieldType::Integer,
-            'currency', 'percent', 'rating' => FieldType::Decimal,
+            'currency', 'percent', 'rating', 'duration' => FieldType::Decimal,
             'checkbox' => FieldType::Boolean,
             'date' => FieldType::Date,
-            'timestamp', 'timeofday' => FieldType::DateTime,
-            'duration' => FieldType::Decimal,
+            'timestamp' => FieldType::DateTime,
+            'timeofday' => FieldType::Time,
             'reference' => FieldType::Reference,
             'file' => FieldType::Attachment,
             default => FieldType::Unknown,
         };
+    }
+
+    /** Whether a Quickbase field holds several values at once, which normalizes to a list column. */
+    public static function isMultiValued(string $nativeType): bool
+    {
+        return 'multitext' === strtolower($nativeType);
     }
 
     private static function fieldId(int|string $field): int
