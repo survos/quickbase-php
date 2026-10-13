@@ -492,12 +492,7 @@ final readonly class QuickbaseClient implements QuickbaseClientInterface
             // Quickbase puts a generic label in `message` ("Invalid input") and the reason that
             // actually identifies the problem in `description`. Keep both.
             $message = self::errorMessage($decoded) ?? self::nonJsonError($content, $statusCode);
-            throw new QuickbaseApiException(
-                is_string($message) ? $message : sprintf('Quickbase request failed with HTTP %d.', $statusCode),
-                $statusCode,
-                self::firstHeader($headers, 'qb-api-ray'),
-                $decoded,
-            );
+            throw new QuickbaseApiException(is_string($message) ? $message : sprintf('Quickbase request failed with HTTP %d.', $statusCode), $statusCode, self::firstHeader($headers, 'qb-api-ray'), $decoded);
         }
 
         return $content;

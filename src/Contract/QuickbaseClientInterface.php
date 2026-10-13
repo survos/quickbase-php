@@ -43,7 +43,7 @@ interface QuickbaseClientInterface
     public function reports(string $tableId): array;
 
     /**
-     * @param list<int> $select
+     * @param list<int>                                      $select
      * @param list<array{fieldId: int, order: 'ASC'|'DESC'}> $sortBy
      *
      * @return array<string, mixed>
@@ -88,7 +88,8 @@ interface QuickbaseClientInterface
 
     /**
      * @param iterable<array<int|string, mixed>> $records
-     * @param list<int> $fieldsToReturn
+     * @param list<int>                          $fieldsToReturn
+     *
      * @return array<string, mixed>
      */
     public function upsertRecords(string $tableId, iterable $records, ?int $mergeFieldId = null, array $fieldsToReturn = []): array;

@@ -9,7 +9,9 @@ use Survos\Quickbase\Contract\QuickbaseClientInterface;
 /** REST schema snapshot/materialization; forms and roles are handled by QBL Solution APIs. */
 final readonly class QuickbaseSchemaManager
 {
-    public function __construct(private QuickbaseClientInterface $quickbase) {}
+    public function __construct(private QuickbaseClientInterface $quickbase)
+    {
+    }
 
     /** @return array<string, mixed> */
     public function snapshot(string $appId): array
@@ -108,7 +110,9 @@ final readonly class QuickbaseSchemaManager
                 $parentLogical = self::required($relationship, 'parentTable');
                 $parentId = $tableIds[$parentLogical] ?? throw new \LogicException(sprintf('Unknown parent table "%s".', $parentLogical));
                 $label = self::required($relationship, 'foreignKeyLabel');
-                if (self::hasRelationship($existing, $parentId, $label)) continue;
+                if (self::hasRelationship($existing, $parentId, $label)) {
+                    continue;
+                }
                 $lookupIds = [];
                 foreach (($relationship['lookupFields'] ?? []) as $lookupLabel) {
                     $lookupIds[] = $fieldIds[$parentLogical][$lookupLabel] ?? throw new \LogicException(sprintf('Unknown lookup field "%s.%s".', $parentLogical, $lookupLabel));
@@ -125,11 +129,18 @@ final readonly class QuickbaseSchemaManager
     private static function relationshipManagedLabels(array $byTable): array
     {
         $labels = [];
-        foreach ($byTable as $childId => $relationships) foreach ($relationships as $relationship) {
-            $labels[$childId][] = self::string(self::object($relationship, 'foreignKeyField'), 'label');
-            foreach (self::objects($relationship, 'lookupFields') as $field) $labels[$childId][] = self::string($field, 'label');
-            foreach (self::objects($relationship, 'summaryFields') as $field) $labels[self::string($relationship, 'parentTableId')][] = self::string($field, 'label');
+        foreach ($byTable as $childId => $relationships) {
+            foreach ($relationships as $relationship) {
+                $labels[$childId][] = self::string(self::object($relationship, 'foreignKeyField'), 'label');
+                foreach (self::objects($relationship, 'lookupFields') as $field) {
+                    $labels[$childId][] = self::string($field, 'label');
+                }
+                foreach (self::objects($relationship, 'summaryFields') as $field) {
+                    $labels[self::string($relationship, 'parentTableId')][] = self::string($field, 'label');
+                }
+            }
         }
+
         return $labels;
     }
 
@@ -146,7 +157,12 @@ final readonly class QuickbaseSchemaManager
     private static function fieldDefinition(array $field): array
     {
         $result = ['label' => self::string($field, 'label'), 'fieldType' => self::string($field, 'fieldType')];
-        foreach (['appearsByDefault', 'bold', 'fieldHelp', 'findEnabled', 'noWrap', 'addToForms', 'properties'] as $key) if (array_key_exists($key, $field)) $result[$key] = $field[$key];
+        foreach (['appearsByDefault', 'bold', 'fieldHelp', 'findEnabled', 'noWrap', 'addToForms', 'properties'] as $key) {
+            if (array_key_exists($key, $field)) {
+                $result[$key] = $field[$key];
+            }
+        }
+
         return $result;
     }
 
@@ -155,25 +171,38 @@ final readonly class QuickbaseSchemaManager
     {
         foreach ($fields as $field) {
             $label = $field['label'] ?? null;
-            if ($label === $lookupLabel || (is_string($label) && str_ends_with($lookupLabel, ' - '.$label))) return $field;
+            if ($label === $lookupLabel || (is_string($label) && str_ends_with($lookupLabel, ' - '.$label))) {
+                return $field;
+            }
         }
+
         return null;
     }
 
     /** @param list<array<string, mixed>> $tables */
     private static function tableName(array $tables, string $id): string
     {
-        foreach ($tables as $table) if (($table['id'] ?? null) === $id) return self::string($table, 'name');
+        foreach ($tables as $table) {
+            if (($table['id'] ?? null) === $id) {
+                return self::string($table, 'name');
+            }
+        }
         throw new \UnexpectedValueException(sprintf('Unknown related table "%s".', $id));
     }
 
-    private static function logicalName(string $label): string { return strtolower(trim((string) preg_replace('/[^a-z0-9]+/i', '_', $label), '_')); }
+    private static function logicalName(string $label): string
+    {
+        return strtolower(trim((string) preg_replace('/[^a-z0-9]+/i', '_', $label), '_'));
+    }
 
     /** @param list<array<string, mixed>> $objects @return array<string, array<string, mixed>> */
     private static function indexBy(array $objects, string $key): array
     {
         $result = [];
-        foreach ($objects as $object) $result[self::string($object, $key)] = $object;
+        foreach ($objects as $object) {
+            $result[self::string($object, $key)] = $object;
+        }
+
         return $result;
     }
 
@@ -181,14 +210,22 @@ final readonly class QuickbaseSchemaManager
     private static function schemaObjects(array $schema, string $key): array
     {
         $value = $schema[$key] ?? [];
-        if (!is_array($value)) throw new \InvalidArgumentException(sprintf('Schema "%s" must be an object.', $key));
+        if (!is_array($value)) {
+            throw new \InvalidArgumentException(sprintf('Schema "%s" must be an object.', $key));
+        }
+
         return $value;
     }
 
     /** @param list<array<string, mixed>> $relationships */
     private static function hasRelationship(array $relationships, string $parentId, string $label): bool
     {
-        foreach ($relationships as $relationship) if (($relationship['parentTableId'] ?? null) === $parentId && ($relationship['foreignKeyField']['label'] ?? null) === $label) return true;
+        foreach ($relationships as $relationship) {
+            if (($relationship['parentTableId'] ?? null) === $parentId && ($relationship['foreignKeyField']['label'] ?? null) === $label) {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -198,11 +235,14 @@ final readonly class QuickbaseSchemaManager
         foreach (self::fieldUpdateDefinition($desired) as $key => $value) {
             $actual = $existing[$key] ?? null;
             if (is_array($value) && is_array($actual)) {
-                if (self::needsSubsetUpdate($actual, $value)) return true;
+                if (self::needsSubsetUpdate($actual, $value)) {
+                    return true;
+                }
             } elseif ($actual !== $value) {
                 return true;
             }
         }
+
         return false;
     }
 
@@ -210,27 +250,45 @@ final readonly class QuickbaseSchemaManager
     private static function needsSubsetUpdate(array $actual, array $desired): bool
     {
         foreach ($desired as $key => $value) {
-            if (!array_key_exists($key, $actual)) return true;
+            if (!array_key_exists($key, $actual)) {
+                return true;
+            }
             if (is_array($value) && is_array($actual[$key])) {
-                if (self::needsSubsetUpdate($actual[$key], $value)) return true;
+                if (self::needsSubsetUpdate($actual[$key], $value)) {
+                    return true;
+                }
             } elseif ($actual[$key] !== $value) {
                 return true;
             }
         }
+
         return false;
     }
 
     /** @param array<string, mixed> $definition @return array<string, mixed> */
-    private static function fieldUpdateDefinition(array $definition): array { unset($definition['fieldType']); return $definition; }
+    private static function fieldUpdateDefinition(array $definition): array
+    {
+        unset($definition['fieldType']);
+
+        return $definition;
+    }
 
     /** @param array<string, mixed> $definition @return array<string, mixed> */
-    private static function fieldCreateDefinition(array $definition): array { unset($definition['unique']); return $definition; }
+    private static function fieldCreateDefinition(array $definition): array
+    {
+        unset($definition['unique']);
+
+        return $definition;
+    }
 
     /** @param array<string, mixed> $object */
     private static function string(array $object, string $key): string
     {
         $value = $object[$key] ?? null;
-        if (!is_string($value) || '' === trim($value)) throw new \UnexpectedValueException(sprintf('Quickbase response requires string "%s".', $key));
+        if (!is_string($value) || '' === trim($value)) {
+            throw new \UnexpectedValueException(sprintf('Quickbase response requires string "%s".', $key));
+        }
+
         return $value;
     }
 
@@ -238,17 +296,26 @@ final readonly class QuickbaseSchemaManager
     private static function required(array $object, string $key): string
     {
         $value = $object[$key] ?? null;
-        if (!is_string($value) || '' === trim($value)) throw new \InvalidArgumentException(sprintf('Schema requires string "%s".', $key));
+        if (!is_string($value) || '' === trim($value)) {
+            throw new \InvalidArgumentException(sprintf('Schema requires string "%s".', $key));
+        }
+
         return $value;
     }
 
-    private static function nullableString(mixed $value): ?string { return is_string($value) && '' !== trim($value) ? $value : null; }
+    private static function nullableString(mixed $value): ?string
+    {
+        return is_string($value) && '' !== trim($value) ? $value : null;
+    }
 
     /** @param array<string, mixed> $object @return array<string, mixed> */
     private static function object(array $object, string $key): array
     {
         $value = $object[$key] ?? null;
-        if (!is_array($value)) throw new \UnexpectedValueException(sprintf('Quickbase response requires object "%s".', $key));
+        if (!is_array($value)) {
+            throw new \UnexpectedValueException(sprintf('Quickbase response requires object "%s".', $key));
+        }
+
         return $value;
     }
 
@@ -256,7 +323,10 @@ final readonly class QuickbaseSchemaManager
     private static function objects(array $object, string $key): array
     {
         $value = $object[$key] ?? [];
-        if (!is_array($value)) throw new \UnexpectedValueException(sprintf('Quickbase response requires list "%s".', $key));
+        if (!is_array($value)) {
+            throw new \UnexpectedValueException(sprintf('Quickbase response requires list "%s".', $key));
+        }
+
         return $value;
     }
 }

@@ -250,7 +250,7 @@ final readonly class QuickbaseAdapter implements RecordStoreAdapterInterface
     }
 
     /** @param array<string, mixed> $result
-     *  @return list<array<array-key, mixed>>
+     * @return list<array<array-key, mixed>>
      */
     private static function data(array $result): array
     {
